@@ -681,18 +681,34 @@ async function initMap() {
     mapSvg.removeAttribute('width');
     mapSvg.removeAttribute('height');
 
+    const tooltip = $('#map-tooltip');
     for (const [code, id] of Object.entries(APSKRITIS_MAP)) {
       const path = mapSvg.querySelector(`#${id}`);
       if (!path) continue;
       path.classList.add('apskritis-path');
       path.setAttribute('data-aps', code);
-      path.setAttribute('tabindex', '0');
-      path.setAttribute('role', 'button');
-      path.addEventListener('click', (e) => applyMapSelection(code, e.shiftKey));
-      path.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          applyMapSelection(code, e.shiftKey);
+      path.addEventListener('mouseenter', (e) => {
+        const name = APSKRITIS_LABELS[code] || code;
+        const count = path.getAttribute('data-count');
+        const text = count != null ? `${name}: ${Number(count).toLocaleString('lt-LT')}` : name;
+        if (tooltip) {
+          tooltip.textContent = text;
+          tooltip.style.left = `${e.clientX + 12}px`;
+          tooltip.style.top = `${e.clientY + 12}px`;
+          tooltip.classList.add('visible');
+          tooltip.setAttribute('aria-hidden', 'false');
+        }
+      });
+      path.addEventListener('mousemove', (e) => {
+        if (tooltip && tooltip.classList.contains('visible')) {
+          tooltip.style.left = `${e.clientX + 12}px`;
+          tooltip.style.top = `${e.clientY + 12}px`;
+        }
+      });
+      path.addEventListener('mouseleave', () => {
+        if (tooltip) {
+          tooltip.classList.remove('visible');
+          tooltip.setAttribute('aria-hidden', 'true');
         }
       });
     }
