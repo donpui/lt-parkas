@@ -114,6 +114,7 @@
   <div class="view-tabs">
     <button class="view-tab active" data-view="table" type="button">Lentelė</button>
     <button class="view-tab" data-view="map" type="button">Apskričių žemėlapis</button>
+    <button class="view-tab" data-view="graph" type="button">Grafikas</button>
   </div>
 
   <div class="view view-map" id="view-map">
@@ -131,6 +132,45 @@
           <div class="map-hint">Spauskite apskritį filtravimui (Shift — kelių pasirinkimas).</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="view view-graph" id="view-graph">
+    <div class="graph-card">
+      <div class="graph-controls">
+        <div class="filter-group">
+          <label>Rodyti pagal</label>
+          <select id="graph-dimension" class="select-input">
+            <option value="SPALVA">Spalva</option>
+            <option value="AGR_CAR_YEAR">Metai</option>
+            <option value="VALD_TIPAS">Valdymo tipas</option>
+            <option value="KILMES_SALIS">Kilmės šalis</option>
+            <option value="DEGALAI">Degalai</option>
+            <option value="KATEGORIJA_KLASE">Kategorija</option>
+            <option value="APSKRITIS">Apskritis</option>
+            <option value="SAVIVALDYBE">Savivaldybė</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Maks. kategorijų</label>
+          <input type="text" class="num-filter" id="graph-limit" value="15" placeholder="pvz.: 20 (0 = visi)">
+        </div>
+        <div class="filter-group">
+          <label>Rikiuoti</label>
+          <select id="graph-sort" class="select-input">
+            <option value="count">Pagal skaičių</option>
+            <option value="label">Pagal pavadinimą</option>
+          </select>
+        </div>
+        <div class="filter-group checkbox-group">
+          <label><input type="checkbox" id="graph-include-unknown" checked> Rodyti „Nežinoma“</label>
+        </div>
+      </div>
+      <div class="graph-meta">
+        <div class="graph-title" id="graph-title">Grafikas</div>
+        <div class="graph-subtitle" id="graph-subtitle"></div>
+      </div>
+      <div id="graph-bars" class="graph-bars"></div>
     </div>
   </div>
 

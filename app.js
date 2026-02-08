@@ -104,6 +104,17 @@ const APSKRITIS_MAP = {
 
 const MAP_LEVELS = 5;
 
+const GRAPH_DIMENSIONS = {
+  SPALVA: 'Spalva',
+  AGR_CAR_YEAR: 'Metai',
+  VALD_TIPAS: 'Valdymo tipas',
+  KILMES_SALIS: 'Kilmės šalis',
+  DEGALAI: 'Degalai',
+  KATEGORIJA_KLASE: 'Kategorija',
+  APSKRITIS: 'Apskritis',
+  SAVIVALDYBE: 'Savivaldybė',
+};
+
 // Kilmės šalis: kodas → pilnas šalies pavadinimas (ISO 3166-1 alpha-2 / alpha-3)
 const KILMES_SALIS_LABELS = {
   // Alpha-2
@@ -175,6 +186,7 @@ let sortDir = 'ASC';
 let refreshId = 0;
 let mapSvg = null;
 let lastApskritisCounts = null;
+let lastGraphRows = null;
 
 const filterState = {};
 for (const f of ALL_COMBO_FILTERS) {
@@ -245,6 +257,12 @@ function buildWhere() {
     if (cond) conditions.push(cond);
   }
   return conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+}
+
+function appendWhere(baseWhere, extraCondition) {
+  if (!extraCondition) return baseWhere;
+  if (baseWhere) return `${baseWhere} AND ${extraCondition}`;
+  return `WHERE ${extraCondition}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,6 +703,108 @@ async function queryApskritisCounts() {
   updateMapSelection();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Graph
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getGraphLabel(col, val) {
+  if (val == null) return 'Nežinoma';
+  const text = String(val);
+  if (col === 'KATEGORIJA_KLASE') return KATEGORIJA_LABELS[text] || text;
+  if (col === 'APSKRITIS') return APSKRITIS_LABELS[text] || text;
+  return text;
+}
+
+function getGraphConfigFromUI() {
+  const dimensionEl = $('#graph-dimension');
+  if (!dimensionEl) return null;
+  const dimension = dimensionEl.value;
+  const sort = $('#graph-sort')?.value || 'count';
+  const includeUnknown = $('#graph-include-unknown')?.checked ?? true;
+  const rawLimit = ($('#graph-limit')?.value || '').trim();
+  const limitNum = rawLimit ? Number(rawLimit) : 0;
+  const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.floor(limitNum) : 0;
+  const safeDimension = GRAPH_DIMENSIONS[dimension] ? dimension : 'SPALVA';
+  return { dimension: safeDimension, sort, includeUnknown, limit };
+}
+
+function renderGraph(rows, config) {
+  lastGraphRows = rows;
+  const titleEl = $('#graph-title');
+  const subtitleEl = $('#graph-subtitle');
+  const barsEl = $('#graph-bars');
+  if (!barsEl) return;
+
+  const dimLabel = GRAPH_DIMENSIONS[config.dimension] || config.dimension;
+  if (titleEl) titleEl.textContent = `Pagal: ${dimLabel}`;
+
+  const sortLabel = config.sort === 'label' ? 'pagal pavadinimą' : 'pagal skaičių';
+  const limitLabel = config.limit > 0 ? `, rodomos ${rows.length} iš ${config.limit}` : '';
+  if (subtitleEl) {
+    subtitleEl.textContent = `Rikiavimas ${sortLabel}${limitLabel}. Iš viso: ${totalRows.toLocaleString('lt-LT')} įrašų.`;
+  }
+
+  if (!rows.length) {
+    barsEl.innerHTML = '<div class="graph-empty">Nėra duomenų pasirinktiems filtrams.</div>';
+    return;
+  }
+
+  const max = Math.max(...rows.map(r => r.count), 1);
+  barsEl.innerHTML = '';
+  for (const row of rows) {
+    const label = getGraphLabel(config.dimension, row.key);
+    const pct = totalRows > 0 ? Math.round((row.count / totalRows) * 1000) / 10 : 0;
+
+    const rowEl = document.createElement('div');
+    rowEl.className = 'graph-row';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'graph-label';
+    labelEl.title = label;
+    labelEl.textContent = label;
+
+    const trackEl = document.createElement('div');
+    trackEl.className = 'graph-track';
+
+    const fillEl = document.createElement('div');
+    fillEl.className = 'graph-fill';
+    fillEl.style.width = `${(row.count / max) * 100}%`;
+    trackEl.appendChild(fillEl);
+
+    const valueEl = document.createElement('div');
+    valueEl.className = 'graph-value';
+    valueEl.textContent = `${row.count.toLocaleString('lt-LT')} (${pct}%)`;
+
+    rowEl.appendChild(labelEl);
+    rowEl.appendChild(trackEl);
+    rowEl.appendChild(valueEl);
+    barsEl.appendChild(rowEl);
+  }
+}
+
+async function queryGraph() {
+  const config = getGraphConfigFromUI();
+  if (!config) return;
+  const col = config.dimension;
+  const colExpr = `CAST("${col}" AS VARCHAR)`;
+  const keyExpr = config.includeUnknown
+    ? `COALESCE(NULLIF(TRIM(${colExpr}), ''), 'Nežinoma')`
+    : `NULLIF(TRIM(${colExpr}), '')`;
+
+  const extraCondition = config.includeUnknown ? null : `${keyExpr} IS NOT NULL`;
+  const where = appendWhere(buildWhere(), extraCondition);
+  const orderBy = config.sort === 'label'
+    ? 'ORDER BY TRY_CAST(k AS INTEGER) NULLS LAST, k ASC'
+    : 'ORDER BY c DESC, k ASC';
+  const limitSql = config.limit > 0 ? `LIMIT ${config.limit}` : '';
+
+  const result = await conn.query(
+    `SELECT ${keyExpr} AS k, COUNT(*) AS c FROM vehicles ${where} GROUP BY k ${orderBy} ${limitSql}`
+  );
+  const rows = result.toArray().map(r => ({ key: r.k, count: Number(r.c) }));
+  renderGraph(rows, config);
+}
+
 async function refresh() {
   const id = ++refreshId;
   $('#app').classList.add('querying');
@@ -699,6 +819,8 @@ async function refresh() {
   await queryCount();
   if (id !== refreshId) return;
   await queryApskritisCounts();
+  if (id !== refreshId) return;
+  await queryGraph();
   if (id !== refreshId) return;
   await queryResults();
 
@@ -774,7 +896,32 @@ function setupEventHandlers() {
             updateMapSelection();
           });
         }
+        if (view === 'graph') {
+          queryGraph();
+        }
       });
+    });
+  }
+
+  const graphDimension = $('#graph-dimension');
+  const graphSort = $('#graph-sort');
+  const graphLimit = $('#graph-limit');
+  const graphIncludeUnknown = $('#graph-include-unknown');
+
+  if (graphDimension) {
+    graphDimension.addEventListener('change', () => queryGraph());
+  }
+  if (graphSort) {
+    graphSort.addEventListener('change', () => queryGraph());
+  }
+  if (graphIncludeUnknown) {
+    graphIncludeUnknown.addEventListener('change', () => queryGraph());
+  }
+  if (graphLimit) {
+    let limitTimer;
+    graphLimit.addEventListener('input', () => {
+      clearTimeout(limitTimer);
+      limitTimer = setTimeout(() => queryGraph(), 300);
     });
   }
 }

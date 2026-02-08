@@ -287,6 +287,16 @@ h1 {
   display: none;
 }
 
+#app[data-view="graph"] .view-table,
+#app[data-view="graph"] .view-map {
+  display: none;
+}
+
+#app[data-view="map"] .view-graph,
+#app[data-view="table"] .view-graph {
+  display: none;
+}
+
 /* --------------------------------------------------------------------------
    Map
    -------------------------------------------------------------------------- */
@@ -406,9 +416,123 @@ h1 {
   color: var(--text-dim);
 }
 
+/* --------------------------------------------------------------------------
+   Graph
+   -------------------------------------------------------------------------- */
+
+.graph-card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px var(--shadow);
+  margin-bottom: 16px;
+}
+
+.graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.select-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.graph-meta {
+  margin-bottom: 10px;
+}
+
+.graph-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.graph-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.graph-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.graph-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.graph-label {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-track {
+  height: 12px;
+  background: var(--bg-elevated);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.graph-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #60a5fa);
+  border-radius: 999px;
+  min-width: 2px;
+}
+
+.graph-value {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.graph-empty {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  padding: 12px 0;
+}
+
 @media (max-width: 640px) {
   .map-count {
     font-size: 12px;
+  }
+
+  .graph-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .graph-value {
+    justify-self: start;
   }
 }
 
