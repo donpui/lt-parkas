@@ -862,8 +862,24 @@ tbody tr {
    -------------------------------------------------------------------------- */
 
 .app-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
   margin-top: 24px;
   text-align: center;
   font-size: 0.75rem;
   color: var(--text-dim);
+}
+
+.app-footer .footer-github {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.app-footer .footer-github:hover {
+  opacity: 1;
 }
