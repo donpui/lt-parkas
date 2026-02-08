@@ -36,7 +36,7 @@ const EXTRA_COMBO_FILTERS = [
 const ALL_COMBO_FILTERS = [...FILTERS, ...EXTRA_COMBO_FILTERS];
 
 const DISPLAY_COLS = [
-  'AGR_MARKE', 'KOMERCINIS_PAV', 'GAMINTOJO_PAV', 'GAMINTOJO_PAV_BAZ',
+  'AGR_MARKE', 'KOMERCINIS_PAV', 'VALD_TIPAS', 'KILMES_SALIS',
   'KATEGORIJA_KLASE', 'KEB_PAVADINIMAS', 'DEGALAI', 'GALIA',
   'DARBINIS_TURIS', 'AGR_CAR_YEAR', 'PIRM_REG_DATA', 'RIDA',
   'SPALVA', 'SAVIVALDYBE'
@@ -484,7 +484,13 @@ async function queryResults() {
     for (const col of DISPLAY_COLS) {
       const td = document.createElement('td');
       const v = row[col];
-      td.textContent = col === 'KATEGORIJA_KLASE' ? (KATEGORIJA_LABELS[v] || v || '') : (v != null ? v : '');
+      let cellText = v != null ? v : '';
+      if (col === 'KATEGORIJA_KLASE') cellText = KATEGORIJA_LABELS[v] || v || '';
+      if (col === 'KILMES_SALIS' && v) {
+        const name = KILMES_SALIS_LABELS[String(v).toUpperCase()];
+        cellText = name ? `${v} — ${name}` : v;
+      }
+      td.textContent = cellText;
       tr.appendChild(td);
     }
     tr.addEventListener('click', () => showDetail(idx));
@@ -522,6 +528,9 @@ function showDetail(idx) {
   const model = row.KOMERCINIS_PAV || '';
   $('#modal-title').textContent = [marke, model].filter(Boolean).join(' ') || 'Informacija';
 
+  $('#modal-info').hidden = true;
+  $('#modal-table').hidden = false;
+
   const tbody = $('#modal-body');
   tbody.innerHTML = '';
   for (const col of allColumns) {
@@ -547,6 +556,14 @@ function showDetail(idx) {
 
 function closeModal() {
   $('#modal').classList.remove('open');
+}
+
+function openInfoModal(title, description) {
+  $('#modal-title').textContent = title;
+  $('#modal-info-text').textContent = description;
+  $('#modal-info').hidden = false;
+  $('#modal-table').hidden = true;
+  $('#modal').classList.add('open');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -880,6 +897,15 @@ function setupEventHandlers() {
   $('#modal-close').addEventListener('click', closeModal);
   $('#modal').addEventListener('click', (e) => { if (e.target === $('#modal')) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  const metaiHint = document.getElementById('metai-hint');
+  if (metaiHint) {
+    metaiHint.addEventListener('click', (e) => {
+      e.preventDefault();
+      const desc = metaiHint.getAttribute('data-description');
+      if (desc) openInfoModal('Metai', desc);
+    });
+  }
 
   const tabs = document.querySelectorAll('.view-tab');
   if (tabs.length) {

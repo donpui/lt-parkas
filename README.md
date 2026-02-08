@@ -35,6 +35,23 @@ Open http://localhost:3000
    - **Progress bar** during Parquet file download
    - **Row count and query time** display
 
+## SQLite conversion (optional)
+
+To load the CSV into a SQLite database for querying with DBeaver or other SQL tools:
+
+```bash
+# Create the database and import CSV
+sqlite3 vehicles.db <<'SQL'
+.mode csv
+.separator ";"
+.import Atviri_TP_parko_duomenys.csv vehicles
+SQL
+```
+
+This creates `vehicles.db` (~628MB) with all 2.4M rows. You can then connect to it from DBeaver (SQLite driver) or any SQLite-compatible tool.
+
+Note: The SQLite database contains raw CSV data without the computed `AGR_MARKE` and `AGR_CAR_YEAR` columns — those are only added during the Parquet conversion via `convert.js`.
+
 ## Data source
 
 [Atviri transporto priemonių parko duomenys](https://data.gov.lt/) — Lithuanian open vehicle registry data.
