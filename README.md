@@ -2,6 +2,10 @@
 
 Browser-based Lithuanian vehicle registry data explorer. Zero backend — runs entirely in the browser using DuckDB-WASM and a pre-converted Parquet file.
 
+## DATA
+
+Used 2026-01-26 https://www.regitra.lt/imone/atviri-duomenys/
+
 ## Setup
 
 ```bash
