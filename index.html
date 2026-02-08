@@ -46,7 +46,7 @@
   <div class="progress-text" id="progress-text"></div>
 </div>
 
-<div id="app" class="app">
+<div id="app" class="app" data-view="table">
   <div class="filters">
     <div class="filter-group">
       <label>Markė</label>
@@ -89,11 +89,51 @@
       <input type="text" class="num-filter" id="f-greitis" placeholder="pvz.: 200, >=180">
     </div>
     <div class="filter-group">
+      <label>Apskritis</label>
+      <div class="combo" id="f-apskritis"><input type="text" placeholder="Visos"><button class="clear-btn">&times;</button><div class="dropdown"></div></div>
+    </div>
+    <div class="filter-group">
       <label>Savivaldybė</label>
       <div class="combo" id="f-savivaldybe"><input type="text" placeholder="Visos"><button class="clear-btn">&times;</button><div class="dropdown"></div></div>
     </div>
+    <div class="filter-group">
+      <label>Valdymo tipas</label>
+      <div class="combo" id="f-vald-tipas"><input type="text" placeholder="Visi"><button class="clear-btn">&times;</button><div class="dropdown"></div></div>
+    </div>
+    <div class="filter-group">
+      <label>Kilmės šalis</label>
+      <div class="combo" id="f-kilmes-salis"><input type="text" placeholder="Visos"><button class="clear-btn">&times;</button><div class="dropdown"></div></div>
+    </div>
+    <div class="filter-group">
+      <label>Spalva</label>
+      <div class="combo" id="f-spalva"><input type="text" placeholder="Visos"><button class="clear-btn">&times;</button><div class="dropdown"></div></div>
+    </div>
   </div>
 
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="table" type="button">Lentelė</button>
+    <button class="view-tab" data-view="map" type="button">Apskričių žemėlapis</button>
+  </div>
+
+  <div class="view view-map" id="view-map">
+    <div class="map-card">
+      <div class="map-header">
+        <div>
+          <div class="map-title">Apskričių pasiskirstymas</div>
+          <div class="map-subtitle">Skaičius rodo atfiltruotų įrašų kiekį</div>
+        </div>
+      </div>
+      <div class="map-content">
+        <div id="lt-map" class="lt-map" role="img" aria-label="Lietuvos apskričių žemėlapis">Kraunamas žemėlapis...</div>
+        <div class="map-meta">
+          <div id="map-unknown" class="map-unknown"></div>
+          <div class="map-hint">Spauskite apskritį filtravimui (Shift — kelių pasirinkimas).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view view-table" id="view-table">
   <div class="info-bar">
     <span><span id="count">-</span><span class="mini-spinner"></span></span>
     <span id="query-time"></span>
@@ -127,6 +167,7 @@
     <button id="btn-prev" disabled>&larr; Ankstesnis</button>
     <span id="page-info">-</span>
     <button id="btn-next" disabled>Kitas &rarr;</button>
+  </div>
   </div>
 </div>
 
