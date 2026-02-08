@@ -1,0 +1,12 @@
+{
+  "name": "lt-park-analyzer",
+  "private": true,
+  "description": "Lithuanian vehicle park data analyzer",
+  "scripts": {
+    "convert": "node convert.js",
+    "serve": "npx serve ."
+  },
+  "dependencies": {
+    "duckdb": "^1.2.2"
+  }
+}
