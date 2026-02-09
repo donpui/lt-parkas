@@ -293,21 +293,30 @@ h1 {
   border-color: var(--accent);
 }
 
-#app[data-view="map"] .view-table {
+#app[data-view="map"] .view-table,
+#app[data-view="map"] .view-trends {
   display: none;
 }
 
-#app[data-view="table"] .view-map {
+#app[data-view="table"] .view-map,
+#app[data-view="table"] .view-trends {
   display: none;
 }
 
 #app[data-view="graph"] .view-table,
-#app[data-view="graph"] .view-map {
+#app[data-view="graph"] .view-map,
+#app[data-view="graph"] .view-trends {
   display: none;
 }
 
 #app[data-view="map"] .view-graph,
-#app[data-view="table"] .view-graph {
+#app[data-view="table"] .view-graph,
+#app[data-view="trends"] .view-graph {
+  display: none;
+}
+
+#app[data-view="trends"] .view-table,
+#app[data-view="trends"] .view-map {
   display: none;
 }
 
@@ -567,6 +576,55 @@ h1 {
   .graph-value {
     justify-self: start;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Trends chart
+   -------------------------------------------------------------------------- */
+
+.trends-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--border);
+}
+
+.trends-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.trends-controls .filter-group {
+  min-width: 100px;
+  max-width: 140px;
+}
+
+.trends-meta {
+  margin-bottom: 16px;
+}
+
+.trends-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.trends-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.trends-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 420px;
+}
+
+.trends-chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* --------------------------------------------------------------------------
