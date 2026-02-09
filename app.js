@@ -838,6 +838,179 @@ async function queryGraph() {
   renderGraph(rows, config);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Trends (line chart — registrations per year, last 10 years)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let lastTrendsRows = null;
+
+async function queryTrends() {
+  const where = buildWhere();
+  const startYear = Number($('#trends-year-from')?.value) || 2015;
+  const endYear = Number($('#trends-year-to')?.value) || 2025;
+
+  // Use PIRM_REG_DATA_LT first, fallback to PIRM_REG_DATA
+  const yearExpr = `CAST(SUBSTRING(COALESCE(NULLIF("PIRM_REG_DATA_LT",''), "PIRM_REG_DATA"), 1, 4) AS INTEGER)`;
+  const extraCond = `${yearExpr} >= ${startYear} AND ${yearExpr} <= ${endYear}`;
+  const fullWhere = appendWhere(where, extraCond);
+
+  const sql = `SELECT ${yearExpr} AS yr, COUNT(*) AS c FROM vehicles ${fullWhere} GROUP BY yr ORDER BY yr`;
+  const result = await conn.query(sql);
+  const rawRows = result.toArray().map(r => ({ year: Number(r.yr), count: Number(r.c) }));
+
+  // Fill missing years with 0
+  const byYear = {};
+  for (const r of rawRows) byYear[r.year] = r.count;
+  const rows = [];
+  for (let y = startYear; y <= endYear; y++) {
+    rows.push({ year: y, count: byYear[y] || 0 });
+  }
+
+  lastTrendsRows = rows;
+  renderTrends(rows);
+}
+
+function renderTrends(rows) {
+  const canvas = document.getElementById('trends-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const subtitleEl = $('#trends-subtitle');
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  if (subtitleEl) {
+    subtitleEl.textContent = `Iš viso per laikotarpį: ${total.toLocaleString('lt-LT')} registracijų`;
+  }
+
+  // Handle HiDPI
+  const wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = wrap.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  // Theme-aware colors
+  const style = getComputedStyle(document.documentElement);
+  const textColor = style.getPropertyValue('--text').trim() || '#1e293b';
+  const mutedColor = style.getPropertyValue('--text-muted').trim() || '#64748b';
+  const borderColor = style.getPropertyValue('--border').trim() || '#e2e8f0';
+  const accentColor = style.getPropertyValue('--accent').trim() || '#3b82f6';
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (!rows.length || rows.every(r => r.count === 0)) {
+    ctx.fillStyle = mutedColor;
+    ctx.font = '14px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Nėra duomenų pasirinktiems filtrams.', W / 2, H / 2);
+    return;
+  }
+
+  // Chart layout
+  const padLeft = 70;
+  const padRight = 30;
+  const padTop = 20;
+  const padBottom = 50;
+  const chartW = W - padLeft - padRight;
+  const chartH = H - padTop - padBottom;
+
+  const maxCount = Math.max(...rows.map(r => r.count));
+  const yMax = niceMax(maxCount);
+
+  function xPos(i) { return padLeft + (i / (rows.length - 1)) * chartW; }
+  function yPos(v) { return padTop + chartH - (v / yMax) * chartH; }
+
+  // Grid lines + Y labels
+  const gridSteps = 5;
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.fillStyle = mutedColor;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i <= gridSteps; i++) {
+    const val = Math.round((yMax / gridSteps) * i);
+    const y = yPos(val);
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(padLeft + chartW, y);
+    ctx.stroke();
+    ctx.fillText(val.toLocaleString('lt-LT'), padLeft - 8, y);
+  }
+
+  // X labels (years)
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = mutedColor;
+  for (let i = 0; i < rows.length; i++) {
+    const x = xPos(i);
+    ctx.fillText(String(rows[i].year), x, padTop + chartH + 8);
+  }
+
+  // Line
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < rows.length; i++) {
+    const x = xPos(i);
+    const y = yPos(rows[i].count);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill area under line
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = accentColor;
+  ctx.beginPath();
+  for (let i = 0; i < rows.length; i++) {
+    const x = xPos(i);
+    const y = yPos(rows[i].count);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(xPos(rows.length - 1), padTop + chartH);
+  ctx.lineTo(xPos(0), padTop + chartH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Data points + value labels
+  ctx.fillStyle = accentColor;
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (let i = 0; i < rows.length; i++) {
+    const x = xPos(i);
+    const y = yPos(rows[i].count);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Value label above dot
+    ctx.fillStyle = textColor;
+    ctx.fillText(rows[i].count.toLocaleString('lt-LT'), x, y - 8);
+    ctx.fillStyle = accentColor;
+  }
+}
+
+function niceMax(val) {
+  if (val <= 0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(val)));
+  const norm = val / mag;
+  let nice;
+  if (norm <= 1) nice = 1;
+  else if (norm <= 2) nice = 2;
+  else if (norm <= 5) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
 async function refresh() {
   const id = ++refreshId;
   $('#app').classList.add('querying');
@@ -854,6 +1027,8 @@ async function refresh() {
   await queryApskritisCounts();
   if (id !== refreshId) return;
   await queryGraph();
+  if (id !== refreshId) return;
+  await queryTrends();
   if (id !== refreshId) return;
   await queryResults();
 
@@ -941,6 +1116,9 @@ function setupEventHandlers() {
         if (view === 'graph') {
           queryGraph();
         }
+        if (view === 'trends') {
+          queryTrends();
+        }
       });
     });
   }
@@ -965,6 +1143,17 @@ function setupEventHandlers() {
       clearTimeout(limitTimer);
       limitTimer = setTimeout(() => queryGraph(), 300);
     });
+  }
+
+  let trendsTimer;
+  for (const id of ['trends-year-from', 'trends-year-to']) {
+    const el = $('#' + id);
+    if (el) {
+      el.addEventListener('input', () => {
+        clearTimeout(trendsTimer);
+        trendsTimer = setTimeout(() => queryTrends(), 400);
+      });
+    }
   }
 }
 
@@ -1076,4 +1265,9 @@ async function init() {
 }
 
 setupThemeToggle();
+
+window.addEventListener('resize', () => {
+  if (lastTrendsRows) renderTrends(lastTrendsRows);
+});
+
 init();
