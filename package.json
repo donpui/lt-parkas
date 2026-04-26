@@ -7,6 +7,6 @@
     "serve": "npx serve ."
   },
   "dependencies": {
-    "duckdb": "^1.2.2"
+    "duckdb": "^1.4.4"
   }
 }

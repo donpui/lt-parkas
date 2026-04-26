@@ -55,3 +55,18 @@ Note: The SQLite database contains raw CSV data without the computed `AGR_MARKE`
 ## Data source
 
 [Atviri transporto priemonių parko duomenys](https://data.gov.lt/) — Lithuanian open vehicle registry data.
+
+## Usage
+
+What works now
+ ?marke=PORSCHE
+ ?marke=PORSCHE,AUDI (comma-separated multi-select)
+ ?marke=PORSCHE&marke=AUDI (repeated param multi-select)
+
+Also supported aliases marke or agr_marke komercinis or komercinis_pav
+plus similar params for other combo filters (kategorija, metai, apskritis, savivaldybe, vald_tipas, kilmes_salis, spalva).
+
+Example URL:
+
+http://localhost:3000/?marke=PORSCHE
+If you want, I can extend this to numeric filters too (e.g. ?galia=>=200&rida=<100000).

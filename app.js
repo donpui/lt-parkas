@@ -16,6 +16,7 @@ const FILTERS = [
   { id: 'f-komercinis', col: 'KOMERCINIS_PAV' },
   { id: 'f-kategorija', col: 'KATEGORIJA_KLASE' },
   { id: 'f-metai', col: 'AGR_CAR_YEAR' },
+  { id: 'f-pirm-reg-data-lt', col: 'PIRM_REG_DATA_LT' },
 ];
 
 const NUMERIC_FILTERS = [
@@ -38,7 +39,7 @@ const ALL_COMBO_FILTERS = [...FILTERS, ...EXTRA_COMBO_FILTERS];
 const DISPLAY_COLS = [
   'AGR_MARKE', 'KOMERCINIS_PAV', 'VALD_TIPAS', 'KILMES_SALIS',
   'KATEGORIJA_KLASE', 'KEB_PAVADINIMAS', 'DEGALAI', 'GALIA',
-  'DARBINIS_TURIS', 'AGR_CAR_YEAR', 'PIRM_REG_DATA', 'RIDA',
+  'DARBINIS_TURIS', 'AGR_CAR_YEAR', 'PIRM_REG_DATA_LT', 'RIDA',
   'SPALVA', 'SAVIVALDYBE'
 ];
 
@@ -105,6 +106,8 @@ const APSKRITIS_MAP = {
 const MAP_LEVELS = 5;
 
 const GRAPH_DIMENSIONS = {
+  AGR_MARKE: 'Markė',
+  KOMERCINIS_PAV: 'Komercinis pav.',
   SPALVA: 'Spalva',
   AGR_CAR_YEAR: 'Metai',
   VALD_TIPAS: 'Valdymo tipas',
@@ -113,6 +116,24 @@ const GRAPH_DIMENSIONS = {
   KATEGORIJA_KLASE: 'Kategorija',
   APSKRITIS: 'Apskritis',
   SAVIVALDYBE: 'Savivaldybė',
+};
+
+const URL_FILTER_PARAM_MAP = {
+  marke: 'f-marke',
+  agr_marke: 'f-marke',
+  komercinis: 'f-komercinis',
+  komercinis_pav: 'f-komercinis',
+  kategorija: 'f-kategorija',
+  kategorija_klase: 'f-kategorija',
+  metai: 'f-metai',
+  agr_car_year: 'f-metai',
+  pirm_reg_data_lt: 'f-pirm-reg-data-lt',
+  pirm_reg_data: 'f-pirm-reg-data-lt',
+  apskritis: 'f-apskritis',
+  savivaldybe: 'f-savivaldybe',
+  vald_tipas: 'f-vald-tipas',
+  kilmes_salis: 'f-kilmes-salis',
+  spalva: 'f-spalva',
 };
 
 // Kilmės šalis: kodas → pilnas šalies pavadinimas (ISO 3166-1 alpha-2 / alpha-3)
@@ -222,6 +243,30 @@ function setComboSelection(filterId, values) {
   const input = comboEl.querySelector('input');
   input.value = formatSelection(filterId, values);
   comboEl.classList.toggle('has-value', values.length > 0);
+}
+
+function applyFiltersFromUrl() {
+  const params = new URLSearchParams(window.location.search || '');
+  if (!params.toString()) return;
+
+  for (const [rawKey, rawValue] of params.entries()) {
+    if (!rawValue) continue;
+    const key = String(rawKey || '').trim().toLowerCase();
+    const filterId = URL_FILTER_PARAM_MAP[key];
+    if (!filterId || !filterState[filterId]) continue;
+
+    // Supports both comma-separated and repeated params:
+    // ?marke=PORSCHE,AUDI or ?marke=PORSCHE&marke=AUDI
+    const allValues = params
+      .getAll(rawKey)
+      .flatMap(v => String(v).split(','))
+      .map(v => v.trim())
+      .filter(Boolean);
+    if (!allValues.length) continue;
+
+    const merged = [...new Set([...(filterState[filterId].selectedValues || []), ...allValues])];
+    setComboSelection(filterId, merged);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1257,6 +1302,7 @@ async function init() {
     setupCloseDropdownsOnOutsideClick();
     setupEventHandlers();
     initMap();
+    applyFiltersFromUrl();
 
     await refresh();
   } catch (err) {

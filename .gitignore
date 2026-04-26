@@ -2,3 +2,5 @@ node_modules/
 *.csv
 *.db
 *.db-journal
+.DS_Store
+bun.lock
