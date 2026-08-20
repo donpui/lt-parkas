@@ -121,6 +121,7 @@
     <button class="view-tab" data-view="map" type="button">Apskričių žemėlapis</button>
     <button class="view-tab" data-view="graph" type="button">Grafikas</button>
     <button class="view-tab" data-view="trends" type="button">Tendencijos</button>
+    <button class="view-tab" data-view="quarter" type="button">Ketvirčio lyderiai</button>
   </div>
 
   <div class="view view-map" id="view-map">
@@ -205,6 +206,82 @@
     </div>
   </div>
 
+  <div class="view view-quarter" id="view-quarter">
+    <div class="quarter-card">
+      <div class="quarter-header">
+        <div>
+          <div class="quarter-title">Ką registruoja šį ketvirtį?</div>
+          <div class="quarter-subtitle">Markių ir komercinių pavadinimų palyginimas su ankstesnio ketvirčio tokiu pačiu laikotarpiu. Markę ir kitus pjūvius galite filtruoti viršuje.</div>
+        </div>
+        <span class="quarter-status" id="quarter-status"></span>
+      </div>
+
+      <div class="quarter-controls">
+        <div class="filter-group">
+          <label>Savininko tipas</label>
+          <select id="quarter-owner" class="select-input">
+            <option value="">Visi savininkai</option>
+            <option value="Fizinis">Fizinis</option>
+            <option value="Juridinis">Juridinis</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Rikiuoti sąrašą</label>
+          <select id="quarter-sort" class="select-input">
+            <option value="current">Daugiausia šį ketvirtį</option>
+            <option value="growth">Didžiausias augimas (vnt.)</option>
+            <option value="growth-pct">Didžiausias augimas (%)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Rodyti įrašų</label>
+          <select id="quarter-limit" class="select-input">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="quarter-periods" id="quarter-periods"></div>
+
+      <div class="quarter-summary" aria-live="polite">
+        <div class="quarter-stat">
+          <span class="quarter-stat-label" id="quarter-current-label">Šis ketvirtis</span>
+          <strong id="quarter-current-count">–</strong>
+        </div>
+        <div class="quarter-stat">
+          <span class="quarter-stat-label" id="quarter-previous-label">Ankstesnis ketvirtis</span>
+          <strong id="quarter-previous-count">–</strong>
+        </div>
+        <div class="quarter-stat">
+          <span class="quarter-stat-label">Pokytis</span>
+          <strong id="quarter-change">–</strong>
+        </div>
+      </div>
+
+      <div class="quarter-table-wrap">
+        <table class="quarter-table">
+          <thead>
+            <tr>
+              <th class="quarter-rank">#</th>
+              <th>Markė</th>
+              <th>Komercinis pav.</th>
+              <th class="quarter-number" id="quarter-current-heading">Šis ketvirtis</th>
+              <th class="quarter-number" id="quarter-previous-heading">Ankstesnis</th>
+              <th class="quarter-number">Pokytis</th>
+              <th class="quarter-number">Pokytis %</th>
+            </tr>
+          </thead>
+          <tbody id="quarter-table-body">
+            <tr><td colspan="7" class="quarter-empty">Kraunami duomenys…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="quarter-note">Skaičiuojama pagal pirmosios registracijos Lietuvoje datą (<code>PIRM_REG_DATA_LT</code>). Rezultatai apibūdina šiame parko faile esančias transporto priemones, todėl tai nėra pardavimų sandorių statistika. Pagal duomenų metaduomenis retos fizinių asmenų markės ir komercinio pavadinimo kombinacijos gali būti pateiktos kaip „Nuasmeninta“.</p>
+    </div>
+  </div>
+
   <div class="view view-table" id="view-table">
   <div class="info-bar">
     <span><span id="count">-</span><span class="mini-spinner"></span></span>
@@ -256,7 +333,7 @@
   </div>
 </div>
 
-<footer class="app-footer">Donatas Puidokas © 2026 — pagaminta su Claude (pabarstyta Codex'u) - atviri duomenys <a href="https://data.gov.lt/" target="_blank" rel="noopener noreferrer">data.gov.lt</a> <a href="https://github.com/donpui/lt-parkas" target="_blank" rel="noopener noreferrer" class="footer-github" aria-label="GitHub repozitorija">
+<footer class="app-footer">Donatas Puidokas © 2026 — pagaminta su Claude (pabarstyta Codex'u) - atviri duomenys <a href="https://www.regitra.lt/imone/atviri-duomenys/" target="_blank" rel="noopener noreferrer">regitra.lt</a> <a href="https://github.com/donpui/lt-parkas" target="_blank" rel="noopener noreferrer" class="footer-github" aria-label="GitHub repozitorija">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
   </a></footer>
 

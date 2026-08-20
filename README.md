@@ -4,7 +4,7 @@ Browser-based Lithuanian vehicle registry data explorer. Zero backend — runs e
 
 ## DATA
 
-Used 2026-01-26 https://www.regitra.lt/imone/atviri-duomenys/
+Used 2026-07-04 https://www.regitra.lt/imone/atviri-duomenys/
 
 ## Setup
 
@@ -22,6 +22,8 @@ Open http://localhost:3000
 
    - **`AGR_MARKE`** — normalized brand name. The raw `MARKE` field has hundreds of variants (e.g. 62 for Volkswagen: `VW`, `VOLKSWAGEN`, `VOLKSWAGEN-VW`, `VW 1K ABBKCX0...`, etc.). `AGR_MARKE` maps them all to a single canonical name (`VOLKSWAGEN`). Explicit rules handle multi-word brands (MERCEDES-BENZ, LAND ROVER, ALFA ROMEO, ROLLS-ROYCE, ASTON MARTIN, HARLEY-DAVIDSON, etc.) and merges (VW/VOLKSWAGEN, DAIMLER/EVOBUS/DAIMLERCHRYSLER → MERCEDES-BENZ). Remaining brands fall back to extracting the first word, uppercased.
 
+   - **`KOMERCINIS_PAV`** — normalized commercial name used by the app. It is uppercased, repeated whitespace is collapsed, and a redundant make prefix is removed (`TOYOTA PRIUS PLUS` → `PRIUS PLUS`). Prefixes are removed only at a word/separator boundary; aliases such as `VW`/`VOLKSWAGEN` and common Mercedes variants are supported. The unmodified source value is retained in **`RAW_KOMERCINIS_PAV`**.
+
    - **`AGR_CAR_YEAR`** — vehicle year. Uses `MODELIO_METAI` when available, otherwise extracts the year from `PIRM_REG_DATA` (first registration date).
 
 2. **`index.html`** — single-page app that loads DuckDB-WASM from CDN, fetches the Parquet file, and provides:
@@ -30,6 +32,7 @@ Open http://localhost:3000
      - Darbinis tūris, Galia, Rida, Maks. greitis — numeric inputs supporting operators (`>=1500`, `<3000`, `=110`, `200`)
      - Savivaldybė — searchable dropdown
    - **Results table** with 14 key columns
+   - **Quarter leaders** — ranks normalized make and commercial-name combinations by first registrations in Lithuania in the newest data quarter, compared with the same elapsed period of the previous quarter
    - **Row detail modal** — click any row to see all 69+ columns
    - **Pagination** (50 rows per page)
    - **Progress bar** during Parquet file download
@@ -54,7 +57,7 @@ Note: The SQLite database contains raw CSV data without the computed `AGR_MARKE`
 
 ## Data source
 
-[Atviri transporto priemonių parko duomenys](https://data.gov.lt/) — Lithuanian open vehicle registry data.
+[Atviri transporto priemonių parko duomenys](https://www.regitra.lt/imone/atviri-duomenys/) — Lithuanian open vehicle registry data.
 
 ## Usage
 

@@ -267,6 +267,7 @@ h1 {
 
 .view-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 4px 0 12px;
 }
@@ -318,6 +319,18 @@ h1 {
 #app[data-view="trends"] .view-table,
 #app[data-view="trends"] .view-map {
   display: none;
+}
+
+#app .view {
+  display: none;
+}
+
+#app[data-view="table"] .view-table,
+#app[data-view="map"] .view-map,
+#app[data-view="graph"] .view-graph,
+#app[data-view="trends"] .view-trends,
+#app[data-view="quarter"] .view-quarter {
+  display: block;
 }
 
 /* --------------------------------------------------------------------------
@@ -625,6 +638,208 @@ h1 {
 .trends-chart-wrap canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* --------------------------------------------------------------------------
+   Quarter-over-quarter leaders
+   -------------------------------------------------------------------------- */
+
+.quarter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.quarter-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.quarter-title {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.quarter-subtitle {
+  max-width: 780px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.quarter-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.quarter-status:empty {
+  display: none;
+}
+
+.quarter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.quarter-controls .filter-group {
+  flex: 0 1 260px;
+  min-width: 190px;
+}
+
+.quarter-controls .filter-group:last-child {
+  flex-basis: 130px;
+  min-width: 120px;
+}
+
+.quarter-periods {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.quarter-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.quarter-stat {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+}
+
+.quarter-stat-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.quarter-stat strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quarter-stat strong.positive,
+.quarter-change.positive {
+  color: #15803d;
+}
+
+.quarter-stat strong.negative,
+.quarter-change.negative {
+  color: var(--danger);
+}
+
+[data-theme="dark"] .quarter-stat strong.positive,
+[data-theme="dark"] .quarter-change.positive {
+  color: #4ade80;
+}
+
+.quarter-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.quarter-table {
+  min-width: 760px;
+}
+
+.quarter-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elevated);
+}
+
+.quarter-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.quarter-table tbody tr:hover {
+  background: var(--hover);
+}
+
+.quarter-rank {
+  width: 48px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.quarter-number {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.quarter-change {
+  display: inline-flex;
+  min-width: 62px;
+  justify-content: flex-end;
+  font-weight: 650;
+}
+
+.quarter-change.new {
+  color: var(--accent);
+}
+
+.quarter-empty {
+  padding: 28px !important;
+  color: var(--text-muted);
+  text-align: center !important;
+}
+
+.quarter-note {
+  margin-top: 12px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.quarter-note code {
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .quarter-card {
+    padding: 16px;
+  }
+
+  .quarter-header {
+    display: block;
+  }
+
+  .quarter-status {
+    display: inline-block;
+    margin-top: 10px;
+  }
+
+  .quarter-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 /* --------------------------------------------------------------------------
