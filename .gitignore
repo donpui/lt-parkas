@@ -4,3 +4,4 @@ node_modules/
 *.db-journal
 .DS_Store
 bun.lock
+*.zip

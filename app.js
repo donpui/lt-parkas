@@ -208,6 +208,8 @@ let refreshId = 0;
 let mapSvg = null;
 let lastApskritisCounts = null;
 let lastGraphRows = null;
+let quarterBoundsPromise = null;
+let quarterQueryId = 0;
 
 const filterState = {};
 for (const f of ALL_COMBO_FILTERS) {
@@ -1056,6 +1058,272 @@ function niceMax(val) {
   return nice * mag;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Quarter leaders (make + commercial name, quarter-to-date comparison)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const QUARTER_ROMAN = ['I', 'II', 'III', 'IV'];
+
+function parseIsoDate(value) {
+  const parts = String(value || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(part => !Number.isFinite(part))) return null;
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+}
+
+function toIsoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getQuarterLabel(date) {
+  const quarter = Math.floor(date.getUTCMonth() / 3);
+  return `${date.getUTCFullYear()} m. ${QUARTER_ROMAN[quarter]} ketv.`;
+}
+
+function getQuarterBoundsFromLatest(latestDateValue) {
+  const currentEndDate = parseIsoDate(latestDateValue);
+  if (!currentEndDate) return null;
+
+  const currentQuarterMonth = Math.floor(currentEndDate.getUTCMonth() / 3) * 3;
+  const currentStartDate = new Date(Date.UTC(currentEndDate.getUTCFullYear(), currentQuarterMonth, 1));
+  const currentQuarterEndDate = new Date(Date.UTC(currentEndDate.getUTCFullYear(), currentQuarterMonth + 3, 0));
+  const previousStartDate = new Date(Date.UTC(currentEndDate.getUTCFullYear(), currentQuarterMonth - 3, 1));
+  const previousQuarterEndDate = new Date(currentStartDate.getTime() - DAY_MS);
+  const elapsedDays = Math.floor((currentEndDate - currentStartDate) / DAY_MS);
+  const comparablePreviousEnd = new Date(previousStartDate.getTime() + elapsedDays * DAY_MS);
+  const previousEndDate = comparablePreviousEnd < previousQuarterEndDate
+    ? comparablePreviousEnd
+    : previousQuarterEndDate;
+
+  return {
+    currentStart: toIsoDate(currentStartDate),
+    currentEnd: toIsoDate(currentEndDate),
+    currentQuarterEnd: toIsoDate(currentQuarterEndDate),
+    previousStart: toIsoDate(previousStartDate),
+    previousEnd: toIsoDate(previousEndDate),
+    currentLabel: getQuarterLabel(currentStartDate),
+    previousLabel: getQuarterLabel(previousStartDate),
+    isPartial: currentEndDate < currentQuarterEndDate,
+  };
+}
+
+async function getQuarterBounds() {
+  if (!quarterBoundsPromise) {
+    quarterBoundsPromise = conn.query(`
+      SELECT CAST(MAX(TRY_CAST(NULLIF(TRIM("PIRM_REG_DATA_LT"), '') AS DATE)) AS VARCHAR) AS latest_date
+      FROM vehicles
+    `).then((result) => {
+      const latestDate = result.toArray()[0]?.latest_date;
+      return getQuarterBoundsFromLatest(latestDate);
+    });
+  }
+  return quarterBoundsPromise;
+}
+
+function getQuarterConfigFromUI() {
+  const sort = $('#quarter-sort')?.value || 'current';
+  const allowedSorts = new Set(['current', 'growth', 'growth-pct']);
+  const rawLimit = Number($('#quarter-limit')?.value || 50);
+  const limit = [25, 50, 100].includes(rawLimit) ? rawLimit : 50;
+  return { sort: allowedSorts.has(sort) ? sort : 'current', limit };
+}
+
+function syncQuarterOwnerControl() {
+  const ownerEl = $('#quarter-owner');
+  if (!ownerEl) return;
+  const selected = filterState['f-vald-tipas']?.selectedValues || [];
+  ownerEl.value = selected.length === 1 && ['Fizinis', 'Juridinis'].includes(selected[0])
+    ? selected[0]
+    : '';
+}
+
+function setChangeClass(element, change) {
+  element.classList.remove('positive', 'negative');
+  if (change > 0) element.classList.add('positive');
+  if (change < 0) element.classList.add('negative');
+}
+
+function formatSignedInteger(value) {
+  const number = Number(value) || 0;
+  const sign = number > 0 ? '+' : '';
+  return `${sign}${number.toLocaleString('lt-LT')}`;
+}
+
+function renderQuarterPeriods(bounds) {
+  const periodsEl = $('#quarter-periods');
+  const statusEl = $('#quarter-status');
+  if (periodsEl) {
+    periodsEl.textContent = `${bounds.currentLabel}: ${bounds.currentStart}–${bounds.currentEnd} · ${bounds.previousLabel}: ${bounds.previousStart}–${bounds.previousEnd}. Lyginami vienodo ilgio laikotarpiai.`;
+  }
+  if (statusEl) {
+    statusEl.textContent = bounds.isPartial
+      ? `Daliniai duomenys iki ${bounds.currentEnd}`
+      : `Pilnas ketvirtis iki ${bounds.currentEnd}`;
+  }
+
+  $('#quarter-current-label').textContent = bounds.currentLabel;
+  $('#quarter-previous-label').textContent = bounds.previousLabel;
+  $('#quarter-current-heading').textContent = bounds.currentLabel;
+  $('#quarter-previous-heading').textContent = bounds.previousLabel;
+}
+
+function renderQuarterSummary(currentTotal, previousTotal) {
+  const currentEl = $('#quarter-current-count');
+  const previousEl = $('#quarter-previous-count');
+  const changeEl = $('#quarter-change');
+  const change = currentTotal - previousTotal;
+
+  currentEl.textContent = currentTotal.toLocaleString('lt-LT');
+  previousEl.textContent = previousTotal.toLocaleString('lt-LT');
+
+  const percent = previousTotal > 0 ? (change / previousTotal) * 100 : null;
+  const percentText = percent == null
+    ? ''
+    : ` (${percent > 0 ? '+' : ''}${percent.toLocaleString('lt-LT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %)`;
+  changeEl.textContent = `${formatSignedInteger(change)}${percentText}`;
+  setChangeClass(changeEl, change);
+}
+
+function renderQuarterLeaders(rows) {
+  const tbody = $('#quarter-table-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+    cell.className = 'quarter-empty';
+    cell.textContent = 'Nėra registracijų pasirinktiems filtrams ir laikotarpiui.';
+    row.appendChild(cell);
+    tbody.appendChild(row);
+    renderQuarterSummary(0, 0);
+    return;
+  }
+
+  renderQuarterSummary(rows[0].totalCurrent, rows[0].totalPrevious);
+
+  const fragment = document.createDocumentFragment();
+  rows.forEach((row, index) => {
+    const tr = document.createElement('tr');
+
+    const rankCell = document.createElement('td');
+    rankCell.className = 'quarter-rank';
+    rankCell.textContent = String(index + 1);
+    tr.appendChild(rankCell);
+
+    for (const value of [row.make, row.model]) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      tr.appendChild(cell);
+    }
+
+    for (const value of [row.currentCount, row.previousCount]) {
+      const cell = document.createElement('td');
+      cell.className = 'quarter-number';
+      cell.textContent = value.toLocaleString('lt-LT');
+      tr.appendChild(cell);
+    }
+
+    const changeCell = document.createElement('td');
+    changeCell.className = 'quarter-number';
+    const changeText = document.createElement('span');
+    changeText.className = 'quarter-change';
+    changeText.textContent = formatSignedInteger(row.changeCount);
+    setChangeClass(changeText, row.changeCount);
+    changeCell.appendChild(changeText);
+    tr.appendChild(changeCell);
+
+    const percentCell = document.createElement('td');
+    percentCell.className = 'quarter-number';
+    const percentText = document.createElement('span');
+    percentText.className = 'quarter-change';
+    if (row.previousCount === 0) {
+      percentText.classList.add('new');
+      percentText.textContent = 'Naujas';
+    } else {
+      const sign = row.growthPercent > 0 ? '+' : '';
+      percentText.textContent = `${sign}${row.growthPercent.toLocaleString('lt-LT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+      setChangeClass(percentText, row.growthPercent);
+    }
+    percentCell.appendChild(percentText);
+    tr.appendChild(percentCell);
+
+    fragment.appendChild(tr);
+  });
+  tbody.appendChild(fragment);
+}
+
+async function queryQuarterLeaders() {
+  const queryId = ++quarterQueryId;
+  const tbody = $('#quarter-table-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="quarter-empty">Atnaujinama…</td></tr>';
+  syncQuarterOwnerControl();
+
+  const bounds = await getQuarterBounds();
+  if (queryId !== quarterQueryId) return;
+  if (!bounds) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="quarter-empty">Nerasta tinkamų registracijos datų.</td></tr>';
+    return;
+  }
+  renderQuarterPeriods(bounds);
+
+  const config = getQuarterConfigFromUI();
+  const dateExpr = `TRY_CAST(NULLIF(TRIM("PIRM_REG_DATA_LT"), '') AS DATE)`;
+  const makeExpr = `UPPER(TRIM(CAST("AGR_MARKE" AS VARCHAR)))`;
+  const modelExpr = `UPPER(TRIM(CAST("KOMERCINIS_PAV" AS VARCHAR)))`;
+  const periodCondition = `${dateExpr} BETWEEN DATE '${bounds.previousStart}' AND DATE '${bounds.currentEnd}'`;
+  const knownVehicleCondition = `NULLIF(${makeExpr}, '') IS NOT NULL AND NULLIF(${modelExpr}, '') IS NOT NULL`;
+  const where = appendWhere(buildWhere(), `${periodCondition} AND ${knownVehicleCondition}`);
+  const orderBy = {
+    current: 'current_count DESC, change_count DESC, make ASC, model ASC',
+    growth: 'change_count DESC, current_count DESC, make ASC, model ASC',
+    'growth-pct': 'growth_percent DESC NULLS LAST, change_count DESC, current_count DESC, make ASC, model ASC',
+  }[config.sort];
+
+  const sql = `
+    WITH grouped AS (
+      SELECT
+        ${makeExpr} AS make,
+        ${modelExpr} AS model,
+        COUNT(*) FILTER (WHERE ${dateExpr} BETWEEN DATE '${bounds.currentStart}' AND DATE '${bounds.currentEnd}') AS current_count,
+        COUNT(*) FILTER (WHERE ${dateExpr} BETWEEN DATE '${bounds.previousStart}' AND DATE '${bounds.previousEnd}') AS previous_count
+      FROM vehicles
+      ${where}
+      GROUP BY make, model
+    ), scored AS (
+      SELECT
+        *,
+        current_count - previous_count AS change_count,
+        CASE WHEN previous_count = 0 THEN NULL
+          ELSE ROUND((current_count - previous_count) * 100.0 / previous_count, 1)
+        END AS growth_percent,
+        SUM(current_count) OVER () AS total_current,
+        SUM(previous_count) OVER () AS total_previous
+      FROM grouped
+    )
+    SELECT *
+    FROM scored
+    WHERE current_count > 0
+    ORDER BY ${orderBy}
+    LIMIT ${config.limit}
+  `;
+
+  const result = await conn.query(sql);
+  if (queryId !== quarterQueryId) return;
+  const rows = result.toArray().map(row => ({
+    make: String(row.make),
+    model: String(row.model),
+    currentCount: Number(row.current_count),
+    previousCount: Number(row.previous_count),
+    changeCount: Number(row.change_count),
+    growthPercent: row.growth_percent == null ? null : Number(row.growth_percent),
+    totalCurrent: Number(row.total_current),
+    totalPrevious: Number(row.total_previous),
+  }));
+  renderQuarterLeaders(rows);
+}
+
 async function refresh() {
   const id = ++refreshId;
   $('#app').classList.add('querying');
@@ -1075,6 +1343,10 @@ async function refresh() {
   if (id !== refreshId) return;
   await queryTrends();
   if (id !== refreshId) return;
+  if ($('#app').dataset.view === 'quarter') {
+    await queryQuarterLeaders();
+    if (id !== refreshId) return;
+  }
   await queryResults();
 
   const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
@@ -1164,6 +1436,9 @@ function setupEventHandlers() {
         if (view === 'trends') {
           queryTrends();
         }
+        if (view === 'quarter') {
+          queryQuarterLeaders();
+        }
       });
     });
   }
@@ -1200,6 +1475,20 @@ function setupEventHandlers() {
       });
     }
   }
+
+  for (const id of ['quarter-sort', 'quarter-limit']) {
+    const el = $('#' + id);
+    if (el) el.addEventListener('change', () => queryQuarterLeaders());
+  }
+
+  const quarterOwner = $('#quarter-owner');
+  if (quarterOwner) {
+    quarterOwner.addEventListener('change', () => {
+      setComboSelection('f-vald-tipas', quarterOwner.value ? [quarterOwner.value] : []);
+      currentPage = 0;
+      refresh();
+    });
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1223,7 +1512,7 @@ async function initDuckDB() {
 }
 
 async function loadParquetFile() {
-  $('#loading-text').textContent = 'Kraunamas Parquet failas...';
+  $('#loading-text').textContent = 'Kraunami duomenys...';
   $('#progress-wrap').style.display = 'block';
 
   const resp = await fetch('vehicles.parquet');
